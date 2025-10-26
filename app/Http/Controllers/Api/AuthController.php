@@ -50,7 +50,6 @@ class AuthController extends Controller
 
         return response()->json([
             'token' => $token,
-            'user'  => $user,
             'role'  => $user->getRoleNames(),
         ]);
     }
