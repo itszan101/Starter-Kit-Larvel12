@@ -20,5 +20,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         //
+        // Force HTTPS in production
+        if (config('app.url') == 'https://link-to-your-app.vercel.app') {
+            \URL::forceScheme('https');
+        }
     }
 }
