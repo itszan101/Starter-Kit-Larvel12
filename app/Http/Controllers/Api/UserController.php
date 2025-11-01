@@ -3,92 +3,139 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
-    // List semua user (admin only)
+    // Menampilkan semua user
     public function index()
     {
-        $this->authorize('viewAny', User::class);
-
-        return UserResource::collection(User::all());
+        $users = User::with('roles')->get();
+        return response()->json($users);
     }
 
-    // Create user (admin only)
+    // Menampilkan detail user
+    public function show($id)
+    {
+        $user = User::with('roles')->findOrFail($id);
+        return response()->json($user);
+    }
+
+    // Menambahkan user baru
     public function store(Request $request)
     {
-        $this->authorize('create', User::class);
-
         $validated = $request->validate([
-            'first_name' => 'required|string|max:100',
-            'last_name'  => 'nullable|string|max:100',
-            'email'      => 'required|email|unique:users,email',
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
-            'gender'     => 'nullable|in:male,female',
-            'password'   => 'required|string|min:6|confirmed',
-            'role'       => 'nullable|in:admin,user'
+            'gender' => 'nullable|in:male,female',
+            'email' => 'required|string|email|unique:users',
+            'password' => 'required|string|min:6|confirmed',
+            'profile_picture' => 'nullable|image|max:2048',
         ]);
+
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('profiles', 'public');
+            $validated['profile_picture'] = $path;
+        }
 
         $validated['password'] = Hash::make($validated['password']);
-
         $user = User::create($validated);
 
-        // Tetapkan role (default user jika kosong)
-        $user->assignRole($validated['role'] ?? 'user');
-
-        return new UserResource($user);
+        // Role default 'user' otomatis via Observer
+        return response()->json([
+            'message' => 'User berhasil dibuat.',
+            'data' => $user->load('roles'),
+        ]);
     }
 
-    // Lihat detail user
-    public function show(User $user)
+    // Update data user (Super Admin bisa ubah password juga)
+    public function update(Request $request, $id)
     {
-        $this->authorize('view', $user);
-
-        return new UserResource($user);
-    }
-
-    // Update user (admin atau owner)
-    public function update(Request $request, User $user)
-    {
-        $this->authorize('update', $user);
+        $user = User::findOrFail($id);
 
         $validated = $request->validate([
-            'first_name' => 'sometimes|required|string|max:100',
-            'last_name'  => 'nullable|string|max:100',
-            'email'      => 'sometimes|required|email|unique:users,email,' . $user->id,
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
-            'gender'     => 'nullable|in:male,female',
-            'password'   => 'nullable|string|min:6|confirmed',
-            'role'       => 'nullable|in:admin,user',
+            'gender' => 'nullable|in:male,female',
+            'email' => 'required|string|email|unique:users,email,' . $user->id,
+            'profile_picture' => 'nullable|image|max:2048',
+            'password' => 'nullable|string|min:6|confirmed',
         ]);
 
+        // Upload foto baru jika ada
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('profiles', 'public');
+            $validated['profile_picture'] = $path;
+        }
+
+        // Ubah password jika dikirim
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
-            unset($validated['password']);
-        }
-
-        // Hanya admin boleh ubah role
-        if ($request->user()->hasRole('admin') && !empty($validated['role'])) {
-            $user->syncRoles([$validated['role']]);
+            unset($validated['password']); // jangan timpa password lama
         }
 
         $user->update($validated);
 
-        return new UserResource($user);
+        return response()->json([
+            'message' => 'Data user berhasil diperbarui.',
+            'data' => $user->load('roles'),
+        ]);
     }
 
     // Hapus user
-    public function destroy(User $user)
+    public function destroy($id)
     {
-        $this->authorize('delete', $user);
-
+        $user = User::findOrFail($id);
         $user->delete();
 
-        return response()->json(['message' => 'User deleted successfully']);
+        return response()->json(['message' => 'User berhasil dihapus.']);
+    }
+
+    // User ubah profil dan password sendiri
+    public function updateSelf(Request $request)
+    {
+        $user = $request->user();
+
+        $validated = $request->validate([
+            'first_name' => 'nullable|string|max:255',
+            'last_name' => 'nullable|string|max:255',
+            'birth_date' => 'nullable|date',
+            'gender' => 'nullable|in:male,female',
+            'email' => 'required|string|email|unique:users,email,' . $user->id,
+            'profile_picture' => 'nullable|image|max:2048',
+            'current_password' => 'nullable|string',
+            'new_password' => 'nullable|string|min:6|confirmed',
+        ]);
+
+        // Jika user ingin ubah password
+        if (!empty($validated['new_password'])) {
+            if (!Hash::check($validated['current_password'], $user->password)) {
+                return response()->json(['message' => 'Password lama tidak cocok.'], 422);
+            }
+            $user->password = Hash::make($validated['new_password']);
+        }
+
+        if ($request->hasFile('profile_picture')) {
+            $path = $request->file('profile_picture')->store('profiles', 'public');
+            $user->profile_picture = $path;
+        }
+
+        $user->first_name = $validated['first_name'] ?? $user->first_name;
+        $user->last_name = $validated['last_name'] ?? $user->last_name;
+        $user->birth_date = $validated['birth_date'] ?? $user->birth_date;
+        $user->gender = $validated['gender'] ?? $user->gender;
+        $user->email = $validated['email'] ?? $user->email;
+
+        $user->save();
+
+        return response()->json([
+            'message' => 'Profil Anda berhasil diperbarui.',
+            'data' => $user->only(['id', 'first_name', 'last_name', 'email', 'profile_picture']),
+        ]);
     }
 }
