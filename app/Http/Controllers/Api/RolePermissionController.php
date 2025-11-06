@@ -158,4 +158,40 @@ class RolePermissionController extends Controller
             ]
         ]);
     }
+
+    // Hapus Role
+    public function deleteRole($id)
+    {
+        $role = Role::find($id);
+
+        if (!$role) {
+            return response()->json([
+                'message' => 'Role not found'
+            ], 404);
+        }
+
+        $role->delete();
+
+        return response()->json([
+            'message' => 'Role deleted successfully'
+        ], 200);
+    }
+
+    // Hapus Permission
+    public function deletePermission($id)
+    {
+        $permission = Permission::find($id);
+
+        if (!$permission) {
+            return response()->json([
+                'message' => 'Permission not found'
+            ], 404);
+        }
+
+        $permission->delete();
+
+        return response()->json([
+            'message' => 'Permission deleted successfully'
+        ], 200);
+    }
 }

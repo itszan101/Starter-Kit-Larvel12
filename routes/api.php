@@ -24,10 +24,12 @@ Route::middleware(['auth:sanctum', 'role:super-admin'])->group(function () {
     // ROLE
     Route::get('/roles', [RolePermissionController::class, 'getRoles']);
     Route::post('/roles', [RolePermissionController::class, 'createRole']);
+    Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
+    Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'getAllRolesWithPermissions']);
     // PERMISSION
     Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
     Route::post('/permissions', [RolePermissionController::class, 'addPermission']);
-    Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'getAllRolesWithPermissions']);
+    Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
     Route::post('/roles/{role}/assign-permission', [RolePermissionController::class, 'assignPermissionToRole']);
     Route::delete('/roles/{role}/remove-permission', [RolePermissionController::class, 'removePermissionFromRole']);
     // USER ROLE MANAGEMENT
