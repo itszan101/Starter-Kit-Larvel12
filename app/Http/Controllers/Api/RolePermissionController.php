@@ -170,12 +170,23 @@ class RolePermissionController extends Controller
             ], 404);
         }
 
+        // Cek apakah role sedang digunakan oleh user
+        $usersWithRole = User::role($role->name)->count();
+
+        if ($usersWithRole > 0) {
+            return response()->json([
+                'message' => "Role '{$role->name}' tidak dapat dihapus karena sedang digunakan oleh {$usersWithRole} user."
+            ], 409); // 409 Conflict
+        }
+
+        // Jika tidak digunakan, hapus role
         $role->delete();
 
         return response()->json([
             'message' => 'Role deleted successfully'
         ], 200);
     }
+
 
     // Hapus Permission
     public function deletePermission($id)
@@ -188,6 +199,18 @@ class RolePermissionController extends Controller
             ], 404);
         }
 
+        // 🔹 Cek apakah permission masih digunakan oleh role
+        $rolesWithPermission = Role::whereHas('permissions', function ($q) use ($permission) {
+            $q->where('id', $permission->id);
+        })->count();
+
+        if ($rolesWithPermission > 0) {
+            return response()->json([
+                'message' => "Permission '{$permission->name}' tidak dapat dihapus karena sedang digunakan oleh {$rolesWithPermission} role."
+            ], 409); // 409 Conflict
+        }
+
+        // 🔹 Hapus permission jika aman
         $permission->delete();
 
         return response()->json([
