@@ -81,76 +81,81 @@ class RolePermissionController extends Controller
         ]);
     }
 
-    // Assign permission ke role
-    public function assignPermissionToRole(Request $request, $role)
+    // Tambah & hapus permission dari role (assign + remove)
+    public function updateRolePermissions(Request $request, $roleName)
     {
         $request->validate([
-            'permissions' => 'required|array',
+            'permissions' => 'array',
             'permissions.*' => 'string|exists:permissions,name'
         ]);
 
-        $role = Role::where('name', $role)->firstOrFail();
-        $role->givePermissionTo($request->permissions);
+        // Ambil role berdasarkan nama
+        $role = Role::where('name', $roleName)->firstOrFail();
 
-        return response()->json([
-            'message' => 'Permissions assigned successfully',
-            'role' => $role->load('permissions')
-        ]);
-    }
+        // Ambil semua permission saat ini
+        $currentPermissions = $role->permissions->pluck('name')->toArray();
 
-    // Hapus permission dari role
-    public function removePermissionFromRole(Request $request, $role)
-    {
-        $request->validate([
-            'permissions' => 'required|array',
-            'permissions.*' => 'string|exists:permissions,name'
-        ]);
+        // Ambil permission baru dari request (bisa kosong)
+        $newPermissions = $request->input('permissions', []);
 
-        $role = Role::where('name', $role)->firstOrFail();
-        $role->revokePermissionTo($request->permissions);
+        // Hitung permission yang harus ditambah dan dihapus
+        $toAdd = array_diff($newPermissions, $currentPermissions);
+        $toRemove = array_diff($currentPermissions, $newPermissions);
 
-        return response()->json([
-            'message' => 'Permissions removed successfully',
-            'role' => $role->load('permissions')
-        ]);
-    }
+        // Tambahkan permission baru
+        if (!empty($toAdd)) {
+            $role->givePermissionTo($toAdd);
+        }
 
-    // Beri role ke user
-    public function assignRoleToUser(Request $request, $id)
-    {
-        $request->validate([
-            'roles' => 'required|array',
-            'roles.*' => 'string|exists:roles,name'
-        ]);
-
-        $user = User::findOrFail($id);
-        $user->syncRoles($request->roles);
-
-        return response()->json([
-            'message' => 'Roles assigned successfully',
-            'user' => [
-                'id' => $user->id,
-                'email' => $user->email,
-                'roles' => $user->getRoleNames()
-            ]
-        ]);
-    }
-
-    // Hapus role dari user
-    public function removeRoleFromUser(Request $request, $id)
-    {
-        $request->validate([
-            'roles' => 'required|array',
-            'roles.*' => 'string|exists:roles,name'
-        ]);
-
-        $user = User::findOrFail($id);
-        foreach ($request->roles as $role) {
-            $user->removeRole($role);
+        // Hapus permission yang tidak lagi dicentang
+        if (!empty($toRemove)) {
+            $role->revokePermissionTo($toRemove);
         }
 
         return response()->json([
-            'message' => 'Roles removed successfully',
+            'message' => 'Permissions updated successfully.',
+            'added' => array_values($toAdd),
+            'removed' => array_values($toRemove),
+            'role' => $role->load('permissions')
+        ]);
+    }
+
+    // Tambah & Hapus Role User (Assign + Remove)
+    public function updateUserRoles(Request $request, $id)
+    {
+        $request->validate([
+            'roles' => 'array',
+            'roles.*' => 'string|exists:roles,name'
+        ]);
+
+        // Ambil user
+        $user = User::findOrFail($id);
+
+        // Ambil role lama dan role baru
+        $currentRoles = $user->getRoleNames()->toArray();
+        $newRoles = $request->input('roles', []);
+
+        // Hitung perbedaan
+        $toAdd = array_diff($newRoles, $currentRoles);
+        $toRemove = array_diff($currentRoles, $newRoles);
+
+        // Tambah role baru
+        if (!empty($toAdd)) {
+            $user->assignRole($toAdd);
+        }
+
+        // Hapus role yang tidak lagi ada
+        if (!empty($toRemove)) {
+            $user->removeRole($toRemove);
+        }
+
+        // (Opsional) bisa juga pakai syncRoles jika ingin langsung sinkron total:
+        // $user->syncRoles($newRoles);
+
+        return response()->json([
+            'message' => 'User roles updated successfully.',
+            'added' => array_values($toAdd),
+            'removed' => array_values($toRemove),
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
@@ -199,7 +204,7 @@ class RolePermissionController extends Controller
             ], 404);
         }
 
-        // 🔹 Cek apakah permission masih digunakan oleh role
+        // Cek apakah permission masih digunakan oleh role
         $rolesWithPermission = Role::whereHas('permissions', function ($q) use ($permission) {
             $q->where('id', $permission->id);
         })->count();
@@ -210,7 +215,7 @@ class RolePermissionController extends Controller
             ], 409); // 409 Conflict
         }
 
-        // 🔹 Hapus permission jika aman
+        // Hapus permission jika aman
         $permission->delete();
 
         return response()->json([

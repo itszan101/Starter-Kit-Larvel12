@@ -30,9 +30,7 @@ Route::middleware(['auth:sanctum', 'role:super-admin'])->group(function () {
     Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
     Route::post('/permissions', [RolePermissionController::class, 'addPermission']);
     Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
-    Route::post('/roles/{role}/assign-permission', [RolePermissionController::class, 'assignPermissionToRole']);
-    Route::delete('/roles/{role}/remove-permission', [RolePermissionController::class, 'removePermissionFromRole']);
+    Route::post('/roles/{role}/permissions/update', [RolePermissionController::class, 'updateRolePermissions']);
     // USER ROLE MANAGEMENT
-    Route::post('/users/{id}/assign-role', [RolePermissionController::class, 'assignRoleToUser']);
-    Route::delete('/users/{id}/remove-role', [RolePermissionController::class, 'removeRoleFromUser']);
+    Route::post('/users/{id}/roles/update', [RolePermissionController::class, 'updateUserRoles']);
 });
