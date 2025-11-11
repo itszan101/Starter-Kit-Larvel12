@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
@@ -31,11 +32,39 @@ class UserController extends Controller
             'last_name' => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
             'gender' => 'nullable|in:male,female',
-            'email' => 'required|string|email|unique:users',
+            'email' => [
+                'required',
+                'string',
+                'email',
+                Rule::unique('users')->whereNull('deleted_at'),
+            ],
             'password' => 'required|string|min:6|confirmed',
             'profile_picture' => 'nullable|image|max:2048',
         ]);
 
+        // Cek apakah ada user soft deleted dengan email yang sama
+        $existingUser = User::withTrashed()->where('email', $validated['email'])->first();
+
+        if ($existingUser && $existingUser->trashed()) {
+            // Jika ditemukan user soft deleted, restore user itu
+            $existingUser->restore();
+
+            // Update data user lama dengan data baru
+            if ($request->hasFile('profile_picture')) {
+                $path = $request->file('profile_picture')->store('profiles', 'public');
+                $validated['profile_picture'] = $path;
+            }
+
+            $validated['password'] = Hash::make($validated['password']);
+            $existingUser->update($validated);
+
+            return response()->json([
+                'message' => 'User lama berhasil direstore dan diperbarui.',
+                'data' => $existingUser->load('roles'),
+            ]);
+        }
+
+        // Kalau tidak ada user lama, buat user baru seperti biasa
         if ($request->hasFile('profile_picture')) {
             $path = $request->file('profile_picture')->store('profiles', 'public');
             $validated['profile_picture'] = $path;
@@ -44,9 +73,8 @@ class UserController extends Controller
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
 
-        // Role default 'user' otomatis via Observer
         return response()->json([
-            'message' => 'User berhasil dibuat.',
+            'message' => 'User baru berhasil dibuat.',
             'data' => $user->load('roles'),
         ]);
     }

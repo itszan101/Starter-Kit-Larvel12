@@ -32,6 +32,9 @@ class User extends Authenticatable
 
     public function getProfilePictureUrlAttribute()
     {
-        return $this->profile_picture ? Storage::url($this->profile_picture) : null;
+        if ($this->profile_picture && Storage::disk('public')->exists($this->profile_picture)) {
+            return asset('storage/' . $this->profile_picture);
+        }
+        return asset('images/default-avatar.png'); // fallback default
     }
 }
