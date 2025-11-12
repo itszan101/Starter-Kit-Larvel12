@@ -17,6 +17,14 @@ class RoleSeeder extends Seeder
             'user.create',
             'user.update',
             'user.delete',
+            'role.create',
+            'role.view',
+            'role.delete',
+            'permission.view',
+            'permission.create',
+            'permission.delete',
+            'role.assignUser',
+            'permission.assignRole',
         ];
 
         // Buat permissions
@@ -31,7 +39,20 @@ class RoleSeeder extends Seeder
 
         // Hubungkan role ke permissions
         $superAdmin->syncPermissions($permissions);
-        $admin->syncPermissions(['user.view', 'user.update']);
+        $admin->syncPermissions([
+            'user.view',
+            'user.create',
+            'user.update',
+            'user.delete',
+            'role.create',
+            'role.view',
+            'role.delete',
+            'permission.view',
+            'permission.create',
+            'permission.delete',
+            'role.assignUser',
+            'permission.assignRole',
+        ]);
         $user->syncPermissions(['user.view']);
     }
 }
