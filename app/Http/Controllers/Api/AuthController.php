@@ -84,9 +84,19 @@ class AuthController extends Controller
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
+        // Ambil data role dan permission dari Spatie Permission
+        $roles = $user->getRoleNames(); // ex: ['super-admin']
+        $permissions = $user->getAllPermissions()->pluck('name'); // ex: ['view users', 'edit users', ...]
+
         return response()->json([
-            'token' => $token,
-            'role'  => $user->getRoleNames(),
+            'token'       => $token,
+            'roles'       => $roles,
+            'permissions' => $permissions,
+            'user'        => [
+                'id'    => $user->id,
+                'name'  => $user->last_name,
+                'email' => $user->email,
+            ],
         ]);
     }
 
