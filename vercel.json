@@ -35,7 +35,6 @@
     "env": {
         "APP_NAME": "Laravel",
         "APP_ENV": "local",
-        "APP_KEY": "base64:d71R5oYAEeZ3Bur0tFofFYOPTVBjeBvomlAIfaPV52k=",
         "APP_DEBUG": "true",
         "APP_URL": "https://link-to-your-app.vercel.app/api/api/",
         "FILESYSTEM_DISK": "",
