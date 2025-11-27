@@ -89,25 +89,25 @@ class RolePermissionController extends Controller
             'permissions.*' => 'string|exists:permissions,name'
         ]);
 
-        // Ambil role berdasarkan nama
         $role = Role::where('name', $roleName)->firstOrFail();
 
-        // Ambil semua permission saat ini
-        $currentPermissions = $role->permissions->pluck('name')->toArray();
+        // Cegah user ngedit permission dari role yang dia punya sendiri
+        if ($request->user()->hasRole($roleName)) {
+            return response()->json([
+                'message' => '403, you can’t edit permission from your own role.',
+            ], 403);
+        }
 
-        // Ambil permission baru dari request (bisa kosong)
+        $currentPermissions = $role->permissions->pluck('name')->toArray();
         $newPermissions = $request->input('permissions', []);
 
-        // Hitung permission yang harus ditambah dan dihapus
         $toAdd = array_diff($newPermissions, $currentPermissions);
         $toRemove = array_diff($currentPermissions, $newPermissions);
 
-        // Tambahkan permission baru
         if (!empty($toAdd)) {
             $role->givePermissionTo($toAdd);
         }
 
-        // Hapus permission yang tidak lagi dicentang
         if (!empty($toRemove)) {
             $role->revokePermissionTo($toRemove);
         }
@@ -128,29 +128,28 @@ class RolePermissionController extends Controller
             'roles.*' => 'string|exists:roles,name'
         ]);
 
-        // Ambil user
+        // Cegah user ngedit role dirinya sendiri
+        if ($request->user()->id == $id) {
+            return response()->json([
+                'message' => '403, you can’t edit your own role',
+            ], 403);
+        }
+
         $user = User::findOrFail($id);
 
-        // Ambil role lama dan role baru
         $currentRoles = $user->getRoleNames()->toArray();
         $newRoles = $request->input('roles', []);
 
-        // Hitung perbedaan
         $toAdd = array_diff($newRoles, $currentRoles);
         $toRemove = array_diff($currentRoles, $newRoles);
 
-        // Tambah role baru
         if (!empty($toAdd)) {
             $user->assignRole($toAdd);
         }
 
-        // Hapus role yang tidak lagi ada
         if (!empty($toRemove)) {
             $user->removeRole($toRemove);
         }
-
-        // (Opsional) bisa juga pakai syncRoles jika ingin langsung sinkron total:
-        // $user->syncRoles($newRoles);
 
         return response()->json([
             'message' => 'User roles updated successfully.',

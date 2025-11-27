@@ -116,12 +116,20 @@ class UserController extends Controller
     }
 
     // Hapus user
-    public function destroy($id)
+    public function destroy(Request $request, $id)
     {
+        if ($request->user()->id == $id) {
+            return response()->json([
+                'message' => '403, you can’t delete your own account'
+            ], 403);
+        }
+
         $user = User::findOrFail($id);
         $user->delete();
 
-        return response()->json(['message' => 'User berhasil dihapus.']);
+        return response()->json([
+            'message' => 'User berhasil dihapus.'
+        ]);
     }
 
     // User ubah profil dan password sendiri
