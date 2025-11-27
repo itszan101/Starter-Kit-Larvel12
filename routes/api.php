@@ -20,17 +20,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/user/profile', [UserController::class, 'updateSelf']);
 });
 
-Route::middleware(['auth:sanctum', 'role:super-admin'])->group(function () {
+Route::middleware(['auth:sanctum'])->group(function () {
     // ROLE
-    Route::get('/roles', [RolePermissionController::class, 'getRoles']);
-    Route::post('/roles', [RolePermissionController::class, 'createRole']);
-    Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole']);
-    Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'getAllRolesWithPermissions']);
+    Route::get('/roles', [RolePermissionController::class, 'getRoles'])->middleware('permission:role.view');
+    Route::post('/roles', [RolePermissionController::class, 'createRole'])->middleware('permission:role.create');
+    Route::delete('/roles/{id}', [RolePermissionController::class, 'deleteRole'])->middleware('permission:role.delete');
+    Route::get('/roles/{role}/permissions', [RolePermissionController::class, 'getAllRolesWithPermissions'])->middleware('permission:role.view');
     // PERMISSION
-    Route::get('/permissions', [RolePermissionController::class, 'getPermissions']);
-    Route::post('/permissions', [RolePermissionController::class, 'addPermission']);
-    Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission']);
-    Route::post('/roles/{role}/permissions/update', [RolePermissionController::class, 'updateRolePermissions']);
+    Route::get('/permissions', [RolePermissionController::class, 'getPermissions'])->middleware('permission:permission.view');
+    Route::post('/permissions', [RolePermissionController::class, 'addPermission'])->middleware('permission:permission.create');
+    Route::delete('/permissions/{id}', [RolePermissionController::class, 'deletePermission'])->middleware('permission:permission.delete');
+    Route::post('/roles/{role}/permissions/update', [RolePermissionController::class, 'updateRolePermissions'])->middleware('permission:permission.assignRole');
     // USER ROLE MANAGEMENT
-    Route::post('/users/{id}/roles/update', [RolePermissionController::class, 'updateUserRoles']);
+    Route::post('/users/{id}/roles/update', [RolePermissionController::class, 'updateUserRoles'])->middleware('permission:role.assignUser');
 });
