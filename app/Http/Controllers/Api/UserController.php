@@ -29,52 +29,38 @@ class UserController extends Controller
     {
         $validated = $request->validate([
             'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'last_name'  => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
-            'gender' => 'nullable|in:male,female',
+            'gender'     => 'nullable|in:male,female',
             'email' => [
                 'required',
-                'string',
                 'email',
                 Rule::unique('users')->whereNull('deleted_at'),
             ],
             'password' => 'required|string|min:6|confirmed',
-            'profile_picture' => 'nullable|image|max:2048',
+            'profile_picture' => 'nullable|string|max:255', // ⬅️ PATH ONLY
         ]);
 
-        // Cek apakah ada user soft deleted dengan email yang sama
-        $existingUser = User::withTrashed()->where('email', $validated['email'])->first();
+        $validated['password'] = Hash::make($validated['password']);
+
+        $existingUser = User::withTrashed()
+            ->where('email', $validated['email'])
+            ->first();
 
         if ($existingUser && $existingUser->trashed()) {
-            // Jika ditemukan user soft deleted, restore user itu
             $existingUser->restore();
-
-            // Update data user lama dengan data baru
-            if ($request->hasFile('profile_picture')) {
-                $path = $request->file('profile_picture')->store('profiles', 'public');
-                $validated['profile_picture'] = $path;
-            }
-
-            $validated['password'] = Hash::make($validated['password']);
             $existingUser->update($validated);
 
             return response()->json([
-                'message' => 'User lama berhasil direstore dan diperbarui.',
+                'message' => 'User direstore dan diperbarui',
                 'data' => $existingUser->load('roles'),
             ]);
         }
 
-        // Kalau tidak ada user lama, buat user baru seperti biasa
-        if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profiles', 'public');
-            $validated['profile_picture'] = $path;
-        }
-
-        $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
 
         return response()->json([
-            'message' => 'User baru berhasil dibuat.',
+            'message' => 'User berhasil dibuat',
             'data' => $user->load('roles'),
         ]);
     }
@@ -86,31 +72,23 @@ class UserController extends Controller
 
         $validated = $request->validate([
             'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
-            'birth_date' => 'nullable|date',
+            'last_name'  => 'nullable|string|max:255',
+            'email' => 'required|email|unique:users,email,' . $user->id,
             'gender' => 'nullable|in:male,female',
-            'email' => 'required|string|email|unique:users,email,' . $user->id,
-            'profile_picture' => 'nullable|image|max:2048',
+            'profile_picture' => 'nullable|string|max:255', // ⬅️ PATH ONLY
             'password' => 'nullable|string|min:6|confirmed',
         ]);
 
-        // Upload foto baru jika ada
-        if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profiles', 'public');
-            $validated['profile_picture'] = $path;
-        }
-
-        // Ubah password jika dikirim
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
-            unset($validated['password']); // jangan timpa password lama
+            unset($validated['password']);
         }
 
         $user->update($validated);
 
         return response()->json([
-            'message' => 'Data user berhasil diperbarui.',
+            'message' => 'User berhasil diperbarui',
             'data' => $user->load('roles'),
         ]);
     }
