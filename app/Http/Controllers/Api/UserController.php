@@ -111,45 +111,50 @@ class UserController extends Controller
     }
 
     // User ubah profil dan password sendiri
+    // Backend API
     public function updateSelf(Request $request)
     {
         $user = $request->user();
 
         $validated = $request->validate([
             'first_name' => 'nullable|string|max:255',
-            'last_name' => 'nullable|string|max:255',
+            'last_name'  => 'nullable|string|max:255',
             'birth_date' => 'nullable|date',
-            'gender' => 'nullable|in:male,female',
-            'email' => 'required|string|email|unique:users,email,' . $user->id,
-            'profile_picture' => 'nullable|image|max:2048',
+            'gender'     => 'nullable|in:male,female',
+            'email'      => 'required|email|unique:users,email,' . $user->id,
+
+            // PATH ONLY
+            'profile_picture' => 'nullable|string|max:255',
+
             'current_password' => 'nullable|string',
-            'new_password' => 'nullable|string|min:6|confirmed',
+            'new_password'     => 'nullable|string|min:6|confirmed',
         ]);
 
-        // Jika user ingin ubah password
         if (!empty($validated['new_password'])) {
             if (!Hash::check($validated['current_password'], $user->password)) {
-                return response()->json(['message' => 'Password lama tidak cocok.'], 422);
+                return response()->json(['message' => 'Password lama tidak cocok'], 422);
             }
-            $user->password = Hash::make($validated['new_password']);
+
+            $validated['password'] = Hash::make($validated['new_password']);
         }
 
-        if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profiles', 'public');
-            $user->profile_picture = $path;
-        }
+        unset(
+            $validated['current_password'],
+            $validated['new_password'],
+            $validated['new_password_confirmation']
+        );
 
-        $user->first_name = $validated['first_name'] ?? $user->first_name;
-        $user->last_name = $validated['last_name'] ?? $user->last_name;
-        $user->birth_date = $validated['birth_date'] ?? $user->birth_date;
-        $user->gender = $validated['gender'] ?? $user->gender;
-        $user->email = $validated['email'] ?? $user->email;
-
-        $user->save();
+        $user->update($validated);
 
         return response()->json([
-            'message' => 'Profil Anda berhasil diperbarui.',
-            'data' => $user->only(['id', 'first_name', 'last_name', 'email', 'profile_picture']),
+            'message' => 'Profil berhasil diperbarui',
+            'data' => $user->only([
+                'id',
+                'first_name',
+                'last_name',
+                'email',
+                'profile_picture'
+            ]),
         ]);
     }
 }
